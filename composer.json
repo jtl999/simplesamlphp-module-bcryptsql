@@ -9,6 +9,12 @@
             "email": "jepurser@gmail.com"
         }
     ],
+	"repositories": [
+	        {
+	            "type": "vcs",
+	            "url": "https://github.com/jwp1000/simplesamlphp-module-bcryptsql"
+	        }
+	    ],
     "require": {
         "simplesamlphp/composer-module-installer": "~1.0"
     }
