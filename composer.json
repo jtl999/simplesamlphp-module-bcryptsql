@@ -1,0 +1,16 @@
+{
+    "name": "jwp1000/simplesamlphp-module-bcryptsql",
+    "description": "A SimpleSAMLphp module to authenticate against a database with a username and bcrypt-hashed password.",
+    "type": "simplesamlphp-module",
+    "keywords": [ "simplesamlphp", "PAPI", "bcrypt", "SQL" ],
+    "authors": [
+        {
+            "name": "Jeff Purser",
+            "email": "jepurser@gmail.com"
+        }
+    ],
+    "require": {
+        "simplesamlphp/composer-module-installer": "~1.0"
+    }
+}
+
