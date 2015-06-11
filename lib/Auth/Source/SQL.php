@@ -36,6 +36,13 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 	 * The username and password will be available as :username and :password.
 	 */
 	private $query;
+	
+
+	/**
+	 * The column holding the password hash.
+	 */
+	private $hash_column;
+	
 
 
 	/**
@@ -52,7 +59,7 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 		parent::__construct($info, $config);
 
 		/* Make sure that all required parameters are present. */
-		foreach (array('dsn', 'username', 'password', 'query') as $param) {
+		foreach (array('dsn', 'username', 'password', 'query', 'hash_column') as $param) {
 			if (!array_key_exists($param, $config)) {
 				throw new Exception('Missing required attribute \'' . $param .
 					'\' for authentication source ' . $this->authId);
@@ -70,6 +77,7 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 		$this->username = $config['username'];
 		$this->password = $config['password'];
 		$this->query = $config['query'];
+		$this->hash_column = $config['hash_column'];
 	}
 
 
@@ -82,7 +90,7 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 		try {
 			$db = new PDO($this->dsn, $this->username, $this->password);
 		} catch (PDOException $e) {
-			throw new Exception('sqlauth:' . $this->authId . ': - Failed to connect to \'' .
+			throw new Exception('bcryptsql:' . $this->authId . ': - Failed to connect to \'' .
 				$this->dsn . '\': '. $e->getMessage());
 		}
 
@@ -130,33 +138,43 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 		try {
 			$sth = $db->prepare($this->query);
 		} catch (PDOException $e) {
-			throw new Exception('sqlauth:' . $this->authId .
+			throw new Exception('bcryptsql:' . $this->authId .
 				': - Failed to prepare query: ' . $e->getMessage());
 		}
 
 		try {
-			$res = $sth->execute(array('username' => $username, 'password' => $password));
+			$res = $sth->execute(array('username' => $username));
 		} catch (PDOException $e) {
-			throw new Exception('sqlauth:' . $this->authId .
+			throw new Exception('bcryptsql:' . $this->authId .
 				': - Failed to execute query: ' . $e->getMessage());
 		}
 
 		try {
 			$data = $sth->fetchAll(PDO::FETCH_ASSOC);
 		} catch (PDOException $e) {
-			throw new Exception('sqlauth:' . $this->authId .
+			throw new Exception('bcryptsql:' . $this->authId .
 				': - Failed to fetch result set: ' . $e->getMessage());
 		}
 
-		SimpleSAML_Logger::info('sqlauth:' . $this->authId . ': Got ' . count($data) .
+		SimpleSAML_Logger::info('bcryptsql:' . $this->authId . ': Got ' . count($data) .
 			' rows from database');
 
 		if (count($data) === 0) {
-			/* No rows returned - invalid username/password. */
-			SimpleSAML_Logger::error('sqlauth:' . $this->authId .
-				': No rows in result set. Probably wrong username/password.');
+			/* No rows returned - invalid username. */
+			SimpleSAML_Logger::error('bcryptsql:' . $this->authId .
+				': No rows in result set. Probably wrong username.');
 			throw new SimpleSAML_Error_Error('WRONGUSERPASS');
 		}
+		
+		/* Validate stored password hash (must be in first row of resultset) */
+		$password_hash = $data[0][$this->hash_column];
+		if ($password_hash !== crypt($password, $password_hash)) {
+		 /* Invalid password */
+		 SimpleSAML_Logger::error('bcryptsql:' . $this->authId .
+			 ': Hash does not match. Wrong password or bcryptsql is misconfigured.');
+		 throw new SimpleSAML_Error_Error('WRONGUSERPASS');
+		}
+		
 
 		/* Extract attributes. We allow the resultset to consist of multiple rows. Attributes
 		 * which are present in more than one row will become multivalued. NULL values and
@@ -181,11 +199,16 @@ class sspmod_bcryptsql_Auth_Source_SQL extends sspmod_core_Auth_UserPassBase {
 					continue;
 				}
 
+				if ($name === $this->hash_column) {
+					/* Don't add password hash to attributes */
+					continue;
+				}
+
 				$attributes[$name][] = $value;
 			}
 		}
 
-		SimpleSAML_Logger::info('sqlauth:' . $this->authId . ': Attributes: ' .
+		SimpleSAML_Logger::info('bcryptsql:' . $this->authId . ': Attributes: ' .
 			implode(',', array_keys($attributes)));
 
 		return $attributes;
