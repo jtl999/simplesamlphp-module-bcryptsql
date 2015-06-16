@@ -8,7 +8,7 @@ Once you have installed SimpleSAMLphp, installing this module is very simple. Ju
 command in the root of your SimpleSAMLphp installation:
 
 ```
-composer.phar require rediris-es/simplesamlphp-module-papi:dev-master
+composer.phar require jwp1000/simplesamlphp-module-bcryptsql:dev-master
 ```
 
 where `dev-master` instructs Composer to install the `master` branch from the Git repository.
